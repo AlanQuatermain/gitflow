@@ -45,7 +45,7 @@ PREFIX=$(git config --get gitflow.prefix.release)
 usage() {
 	echo "usage: git flow release [list] [-v]"
 	echo "       git flow release start [-F] <version>"
-	echo "       git flow release finish [-Fsump] <version>"
+	echo "       git flow release finish [-Fasump] <version>"
 }
 
 cmd_default() {

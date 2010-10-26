@@ -162,6 +162,53 @@ cmd_default() {
 		# store the name of the develop branch
 		git config gitflow.branch.develop "$develop_branch"
 	fi
+	
+	# add a partner branch if no such branch exists yet
+	local partner_branch
+	if gitflow_has_partner_configured && ! flag force; then
+		partner_branch=$(git config --get gitflow.branch.partner)
+	else
+		# Again, the same two cases as with the master/develop selections are
+		# considered (fresh repo or repo that contains branches)
+		local default_suggestion
+		local should_check_existence
+		branch_count=$(git_local_branches | grep -v "^(${master_branch}|${develop_branch})\$" | wc -l)
+		if [ "$branch_count" -eq 0 ]; then
+			should_check_existence=NO
+			default_suggestion=$(git config --get gitflow.branch.develop || echo develop)
+		else
+			echo
+			echo "Which branch should be used for bringing forth partner production releases?"
+			git_local_branches | grep -v "^(${master_branch}|${develop_branch})\$" | sed 's/^.*$/   - &/g'
+			
+			should_check_existence=YES
+			default_suggestion=
+			for guess in $(git config --get gitflow.branch.partner) \
+						 'partner' 'master'; do
+				if git_local_branch_exists "$guess"; then
+					default_suggestion="$guess"
+					break
+				fi
+			done
+		fi
+		
+		printf "Branch name for partner production releases: [$default_suggestion] "
+		read answer
+		partner_branch=${answer:-$default_suggestion}
+		
+		if [ "$develop_branch" = "$partner_branch" ]; then
+			die "Production and integration branches should differ."
+		fi
+		
+		# check existince in case of an already existing repo
+		if [ "$should_check_existence" = "YES" ]; then
+			git_local_branch_exists "$partner_branch" || \
+				die "Local branch '$partner_branch' does not exist."
+		fi
+		
+		# store the name of the partner branch
+		git config gitflow.branch.partner "$partner_branch"
+	fi
 
 	# Creation of HEAD
 	# ----------------
@@ -204,8 +251,10 @@ cmd_default() {
 	   ! git config --get gitflow.prefix.feature >/dev/null 2>&1 || 
 	   ! git config --get gitflow.prefix.release >/dev/null 2>&1 || 
 	   ! git config --get gitflow.prefix.hotfix >/dev/null 2>&1 || 
-	   ! git config --get gitflow.prefix.support >/dev/null 2>&1 || 
-	   ! git config --get gitflow.prefix.versiontag >/dev/null 2>&1; then
+	   ! git config --get gitflow.prefix.support >/dev/null 2>&1 ||
+	   ! git config --get gitflow.prefix.partner >/dev/null 2>&1 || 
+	   ! git config --get gitflow.prefix.versiontag >/dev/null 2>&1 ||
+	   ! git config --get gitflow.prefix.partnerversiontag >/dev/null 2>&1; then
 		echo
 		echo "How to name your supporting branch prefixes?"
 	fi
@@ -250,6 +299,14 @@ cmd_default() {
 		git config gitflow.prefix.support "$prefix"
 	fi
 
+	# Partner release branches
+	if ! git config --get gitflow.prefix.partner >/dev/null 2>&1 || flag force; then
+		default_suggestion=$(git config --get gitflow.prefix.partner || echo partner/)
+		printf "Partner branches? [$default_suggestion] "
+		read answer
+		[ "$answer" = "-" ] && prefix= || prefix=${answer:-$default_suggestion}
+		git config gitflow.prefix.partner "$prefix"
+	fi
 
 	# Version tag prefix
 	if ! git config --get gitflow.prefix.versiontag >/dev/null 2>&1 || flag force; then
@@ -258,6 +315,15 @@ cmd_default() {
 		read answer
 		[ "$answer" = "-" ] && prefix= || prefix=${answer:-$default_suggestion}
 		git config gitflow.prefix.versiontag "$prefix"
+	fi
+	
+	# Partner version tag prefix
+	if ! git config --get gitflow.prefix.partnerversiontag >/dev/null 2>&1 || flag force; then
+		default_suggestion=$(git config --get gitflow.prefix.partnerversiontag || echo "")
+		printf "Partner version tag prefix? [$default_suggestion] "
+		read answer
+		[ "$answer" = "-" ] && prefix= || prefix=${answer:-$default_suggestion}
+		git config gitflow.prefix.partnerversiontag "$prefix"
 	fi
 
 

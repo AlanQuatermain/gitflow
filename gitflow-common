@@ -145,6 +145,18 @@ git_is_branch_merged_into() {
 }
 
 #
+# git_branch_contains_tag()
+#
+# Checks whether branch $1 contains the commit tagged with $2
+#
+git_branch_contains_tag() {
+	local branch=$1
+	local tag=$2
+	local all_tagged_branches=$(git branch --no-color --contains $tag | sed 's/^[* ] //')
+	has $branch $all_tagged_branches
+}
+
+#
 # gitflow specific common functionality
 #
 
@@ -157,6 +169,11 @@ gitflow_has_master_configured() {
 gitflow_has_develop_configured() {
 	local develop=$(git config --get gitflow.branch.develop)
 	[ "$develop" != "" ] && git_local_branch_exists "$develop"
+}
+
+gitflow_has_partner_configured() {
+	local partner=$(git config --get gitflow.branch.partner)
+	[ "$partner" != "" ] && git_local_branch_exists "$partner"
 }
 
 gitflow_has_prefixes_configured() {
@@ -172,6 +189,7 @@ gitflow_is_initialized() {
 	gitflow_has_develop_configured                   && \
 	[ "$(git config --get gitflow.branch.master)" !=    \
 	  "$(git config --get gitflow.branch.develop)" ] && \
+	gitflow_has_partner_configured					 && \
 	gitflow_has_prefixes_configured
 }
 
@@ -180,6 +198,7 @@ gitflow_load_settings() {
 	export DOT_GIT_DIR=$(git rev-parse --git-dir >/dev/null 2>&1)
 	export MASTER_BRANCH=$(git config --get gitflow.branch.master)
 	export DEVELOP_BRANCH=$(git config --get gitflow.branch.develop)
+	export PARTNER_BRANCH=$(git config --get gitflow.branch.partner)
 	export ORIGIN=$(git config --get gitflow.origin || echo origin)
 }
 
